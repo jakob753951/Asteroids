@@ -1,104 +1,113 @@
 package dk.sdu.mmmi.cbse.entities;
 
-import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.MathUtils;
 import dk.sdu.mmmi.cbse.main.Game;
 import dk.sdu.mmmi.cbse.util.SimplexNoise;
 
 import java.util.Random;
+import java.util.Set;
 
 public class Enemy extends SpaceObject {
 
-    private float maxSpeed;
-    private float acceleration;
-    private float deceleration;
+	private float maxSpeed;
+	private float acceleration;
+	private float deceleration;
 
-    private long frame;
+	private long frame;
+	private Random rng;
 
-    public Enemy() {
-        x = Game.WIDTH /3.f*2;
-        y = Game.HEIGHT/3.f*2;
+	private Set<Bullet> bullets;
 
-        maxSpeed = 300;
-        acceleration = 200;
-        deceleration = 10;
+	public Enemy(Set<Bullet> bullets) {
+		x = Game.WIDTH / 3.f * 2;
+		y = Game.HEIGHT / 3.f * 2;
 
-        shapex = new float[4];
-        shapey = new float[4];
+		maxSpeed = 300;
+		acceleration = 200;
+		deceleration = 10;
 
-        radians = 3.1415f;
-        rotationSpeed = 3;
+		shapex = new float[4];
+		shapey = new float[4];
 
-        frame = 0;
-    }
+		radians = 3.1415f;
+		rotationSpeed = 3;
 
-    private float getRandomTurnAngle() {
-        return (float) (SimplexNoise.noise(frame/200.f, 0.f) * rotationSpeed);
-    }
+		frame = 0;
 
-    private float getRandomAcceleration() {
-        return (float) (SimplexNoise.noise(frame/200.f, 1.f) + 1) / 2.f * acceleration;
-    }
+		color = new Color();
+		color.r = 1;
+		color.g = 1;
+		color.b = 1;
+		color.a = 1;
 
-    public void update(float dt) {
-        frame++;
-        radians += getRandomTurnAngle() * dt;
+		this.bullets = bullets;
 
-        float accel = getRandomAcceleration();
-        dx += MathUtils.cos(radians) * accel * dt;
-        dy += MathUtils.sin(radians) * accel * dt;
+		rng = new Random();
 
-        // deceleration
-        float vec = (float) Math.sqrt(dx * dx + dy * dy);
-        if (vec > 0) {
-            dx -= (dx / vec) * deceleration * dt;
-            dy -= (dy / vec) * deceleration * dt;
-        }
-        if (vec > maxSpeed) {
-            dx = (dx / vec) * maxSpeed;
-            dy = (dy / vec) * maxSpeed;
-        }
+		radius = 4;
+	}
 
-        // set position
-        x += dx * dt;
-        y += dy * dt;
+	private float getRandomTurnAngle() {
+		return (float) (SimplexNoise.noise(frame / 200.f, 0.f) * rotationSpeed);
+	}
 
-        // set shape
-        setShape();
+	private float getRandomAcceleration() {
+		return (float) (SimplexNoise.noise(frame / 200.f, 1.f) + 1) / 2.f * acceleration;
+	}
 
-        // screen wrap
-        wrap();
-    }
+	private void decelerate(float dt) {
+		float vec = (float) Math.sqrt(dx * dx + dy * dy);
+		if (vec > 0) {
+			dx -= (dx / vec) * deceleration * dt;
+			dy -= (dy / vec) * deceleration * dt;
+		}
+		if (vec > maxSpeed) {
+			dx = (dx / vec) * maxSpeed;
+			dy = (dy / vec) * maxSpeed;
+		}
+	}
 
-    private void setShape() {
-        shapex[0] = x + MathUtils.cos(radians) * 8;
-        shapey[0] = y + MathUtils.sin(radians) * 8;
+	public void update(float dt) {
+		frame++;
 
-        shapex[1] = x + MathUtils.cos(radians - 4 * 3.1415f / 5) * 8;
-        shapey[1] = y + MathUtils.sin(radians - 4 * 3.1145f / 5) * 8;
+		radians += getRandomTurnAngle() * dt;
 
-        shapex[2] = x + MathUtils.cos(radians + 3.1415f) * 5;
-        shapey[2] = y + MathUtils.sin(radians + 3.1415f) * 5;
+		float accel = getRandomAcceleration();
+		dx += MathUtils.cos(radians) * accel * dt;
+		dy += MathUtils.sin(radians) * accel * dt;
 
-        shapex[3] = x + MathUtils.cos(radians + 4 * 3.1415f / 5) * 8;
-        shapey[3] = y + MathUtils.sin(radians + 4 * 3.1415f / 5) * 8;
-    }
+		decelerate(dt);
 
-    public void draw(ShapeRenderer sr) {
+		updatePosition(dt);
 
-        sr.setColor(1, 1, 1, 1);
+		if (rng.nextFloat() < 0.01) {
+			fireBullet();
+		}
 
-        sr.begin(ShapeRenderer.ShapeType.Line);
+		setShape();
 
-        for (int i = 0, j = shapex.length - 1;
-             i < shapex.length;
-             j = i++) {
+		screenWrap();
+	}
 
-            sr.line(shapex[i], shapey[i], shapex[j], shapey[j]);
+	private void fireBullet() {
+		float barrelLength = 20;
+		float bulletX = x + MathUtils.cos(radians) * barrelLength;
+		float bulletY = y + MathUtils.sin(radians) * barrelLength;
+		Bullet bullet = new Bullet(bulletX, bulletY, radians, dx, dy);
+		bullets.add(bullet);
+	}
 
-        }
+	private void setShape() {
+		shapex[0] = x + MathUtils.cos(radians) * 8;
+		shapey[0] = y + MathUtils.sin(radians) * 8;
 
-        sr.end();
+		shapex[1] = x + MathUtils.cos(radians - 4 * 3.1415f / 5) * 8;
+		shapey[1] = y + MathUtils.sin(radians - 4 * 3.1145f / 5) * 8;
 
-    }
+		shapex[2] = x + MathUtils.cos(radians + 3.1415f) * 5;
+		shapey[2] = y + MathUtils.sin(radians + 3.1415f) * 5;
+
+		shapex[3] = x + MathUtils.cos(radians + 4 * 3.1415f / 5) * 8;
+		shapey[3] = y + MathUtils.sin(radians + 4 * 3.1415f / 5) * 8;
+	}
 }
